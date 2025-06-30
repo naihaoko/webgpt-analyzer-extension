@@ -1,5 +1,3 @@
-
-
 (async () => {
     // --- UTILITY FUNCTIONS ---
     const log = (message) => console.log('[WebGPT Analyzer]', message);
@@ -180,6 +178,28 @@
             contentArea.appendChild(section);
         }
 
+        // Reasoning
+        if (analysis.reasoningData && analysis.reasoningData.length > 0) {
+            const section = createSection('Reasoning');
+            analysis.reasoningData.forEach(data => {
+                const summaryDiv = document.createElement('div');
+                summaryDiv.style.cssText = 'margin-bottom: 12px; padding: 10px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #E60012;';
+                
+                const summaryTitle = document.createElement('h4');
+                summaryTitle.textContent = data.summary;
+                summaryTitle.style.cssText = 'margin: 0 0 8px 0; font-weight: 600; color: #E60012; font-size: 1em;';
+                summaryDiv.appendChild(summaryTitle);
+                
+                const contentP = document.createElement('p');
+                contentP.textContent = data.content;
+                contentP.style.cssText = 'margin: 0; font-size: 0.9em; line-height: 1.4; color: #555;';
+                summaryDiv.appendChild(contentP);
+                
+                section.appendChild(summaryDiv);
+            });
+            contentArea.appendChild(section);
+        }
+
         // Search Queries
         if (analysis.queries.length > 0) {
             const section = createSection('Search Queries');
@@ -246,6 +266,7 @@
             const usedUrlsSet = new Set();
             const unusedUrlsSet = new Set();
             let resultsUnused = [];
+            const reasoningData = []; // New array to store reasoning data
 
             const convertDate = (v) => v && /^\d{10}$/.test(v) ? new Date(parseInt(v) * 1000).toISOString().split("T")[0] : v;
             const normalizeUrl = (url) => url ? url.split("?")[0].replace(/\/$/, "") : "";
@@ -255,6 +276,18 @@
                 if (Array.isArray(obj)) {
                     obj.forEach(item => extractData(item));
                     return;
+                }
+                
+                // Extract thoughts data (summary and content)
+                if (obj.content_type === "thoughts" && Array.isArray(obj.thoughts)) {
+                    obj.thoughts.forEach(thought => {
+                        if (thought.summary && thought.content) {
+                            reasoningData.push({
+                                summary: thought.summary,
+                                content: thought.content
+                            });
+                        }
+                    });
                 }
                 
                 // Extract search queries from various possible locations
@@ -355,7 +388,8 @@
                 queries: Array.from(queries),
                 resultsUsed,
                 resultsUnused,
-                userMessages: Array.from(userMessages)
+                userMessages: Array.from(userMessages),
+                reasoningData: reasoningData
             });
             log('Analysis complete and rendered.');
 
