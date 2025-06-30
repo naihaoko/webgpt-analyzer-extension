@@ -249,72 +249,59 @@
             contentArea.appendChild(section);
         }
 
-        // Search Queries
-        if (analysis.queries.length > 0) {
-            const section = createSection('Search Queries');
-            
+        // General Search Main Section
+        const generalSearchSection = createSection('General Search');
+        const generalSearchSectionContent = [];
+
+        if (analysis.generalQueries && analysis.generalQueries.length > 0) {
             const generalQueriesContent = [];
-            if (analysis.generalQueries && analysis.generalQueries.length > 0) {
-                analysis.generalQueries.forEach(q => {
-                    const li = document.createElement('li');
-                    li.textContent = q;
-                    li.style.cssText = 'margin-bottom: 6px; font-size: 0.95em;';
-                    generalQueriesContent.push(li);
-                });
-            } else {
-                const p = document.createElement('p');
-                p.style.cssText = 'font-size: 0.95em; color: #555;';
-                p.textContent = '(None found)';
-                generalQueriesContent.push(p);
-            }
-            section.appendChild(createCollapsibleWrapper('General Search', generalQueriesContent));
-            
-            const productQueriesContent = [];
-            if (analysis.productQueries && analysis.productQueries.length > 0) {
-                analysis.productQueries.forEach(q => {
-                    const li = document.createElement('li');
-                    li.textContent = q;
-                    li.style.cssText = 'margin-bottom: 6px; font-size: 0.95em;';
-                    productQueriesContent.push(li);
-                });
-            } else {
-                const p = document.createElement('p');
-                p.style.cssText = 'font-size: 0.95em; color: #555;';
-                p.textContent = '(None found)';
-                productQueriesContent.push(p);
-            }
-            section.appendChild(createCollapsibleWrapper('Product Search', productQueriesContent));
-            
-            contentArea.appendChild(section);
+            analysis.generalQueries.forEach(q => {
+                const li = document.createElement('li');
+                li.textContent = q;
+                li.style.cssText = 'margin-bottom: 6px; font-size: 0.95em;';
+                generalQueriesContent.push(li);
+            });
+            generalSearchSectionContent.push(createCollapsibleWrapper('General Search Queries', generalQueriesContent));
         }
 
-        // Used Results
         const usedResultsContent = [];
         if (analysis.resultsUsed.length > 0) {
             analysis.resultsUsed.forEach(item => usedResultsContent.push(createAccordion(item)));
-        } else {
-            const p = document.createElement('p');
-            p.style.cssText = 'font-size: 0.95em; color: #555;';
-            p.textContent = '(None found)';
-            usedResultsContent.push(p);
         }
-        contentArea.appendChild(createCollapsibleWrapper(`${analysis.resultsUsed.length} Used Search Results`, usedResultsContent));
+        if (usedResultsContent.length > 0) {
+            generalSearchSectionContent.push(createCollapsibleWrapper(`${analysis.resultsUsed.length} Used Search Results`, usedResultsContent));
+        }
 
-        // Unused Results
         const unusedResultsContent = [];
         if (analysis.resultsUnused.length > 0) {
             analysis.resultsUnused.forEach(item => unusedResultsContent.push(createAccordion(item)));
-        } else {
-            const p = document.createElement('p');
-            p.style.cssText = 'font-size: 0.95em; color: #555;';
-            p.textContent = '(None found)';
-            unusedResultsContent.push(p);
         }
-        contentArea.appendChild(createCollapsibleWrapper(`${analysis.resultsUnused.length} Unused Search Results`, unusedResultsContent));
+        if (unusedResultsContent.length > 0) {
+            generalSearchSectionContent.push(createCollapsibleWrapper(`${analysis.resultsUnused.length} Unused Search Results`, unusedResultsContent));
+        }
 
-        // Product Search Results
-        const productResultsContent = [];
+        if (generalSearchSectionContent.length > 0) {
+            generalSearchSectionContent.forEach(el => generalSearchSection.appendChild(el));
+            contentArea.appendChild(generalSearchSection);
+        }
+
+        // Product Search Main Section
+        const productSearchSection = createSection('Product Search');
+        const productSearchSectionContent = [];
+
+        if (analysis.productQueries && analysis.productQueries.length > 0) {
+            const productQueriesContent = [];
+            analysis.productQueries.forEach(q => {
+                const li = document.createElement('li');
+                li.textContent = q;
+                li.style.cssText = 'margin-bottom: 6px; font-size: 0.95em;';
+                productQueriesContent.push(li);
+            });
+            productSearchSectionContent.push(createCollapsibleWrapper('Product Search Queries', productQueriesContent));
+        }
+
         if (analysis.productResults && analysis.productResults.length > 0) {
+            const productResultsContent = [];
             analysis.productResults.forEach(product => {
                 const productDiv = document.createElement('div');
                 productDiv.style.cssText = 'margin-bottom: 12px; padding: 10px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #E60012;';
@@ -345,22 +332,15 @@
                     productDiv.appendChild(productMerchants);
                 }
 
-                if (product.featured_tag) {
-                    const productTag = document.createElement('p');
-                    productTag.innerHTML = `<strong>Tag:</strong> ${product.featured_tag}`;
-                    productTag.style.cssText = 'margin: 0 0 4px 0; font-size: 0.9em; color: #555;';
-                    productDiv.appendChild(productTag);
-                }
-                
                 productResultsContent.push(productDiv);
             });
-        } else {
-            const p = document.createElement('p');
-            p.style.cssText = 'font-size: 0.95em; color: #555;';
-            p.textContent = '(None found)';
-            productResultsContent.push(p);
+            productSearchSectionContent.push(createCollapsibleWrapper(`${analysis.productResults.length} Product Search Results`, productResultsContent));
         }
-        contentArea.appendChild(createCollapsibleWrapper(`${analysis.productResults.length} Product Search Results`, productResultsContent));
+
+        if (productSearchSectionContent.length > 0) {
+            productSearchSectionContent.forEach(el => productSearchSection.appendChild(el));
+            contentArea.appendChild(productSearchSection);
+        }
     };
 
     // --- DATA FETCHING AND PROCESSING ---

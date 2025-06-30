@@ -8,13 +8,19 @@ This extension is particularly useful for understanding how ChatGPT leverages we
 
 ## Features
 
--   **Search Query Extraction**: Identifies and lists all search queries made by ChatGPT during a conversation, categorized into General Search and Product Search for clarity.
+-   **Search Query Extraction**: Identifies and lists all search queries made by ChatGPT during a conversation, categorized into General Search and Product Search for clarity. These sections only appear when relevant data is present.
+-   **Organized Search Results**: All search-related information is now logically grouped:
+    -   **General Search**: This main section houses:
+        -   General Search Queries: Identifies and lists general search queries.
+        -   Used Search Results: Highlights URLs from search results that ChatGPT explicitly referenced or used.
+        -   Unused Search Results: Lists URLs from search results that were retrieved but not explicitly incorporated.
+    -   **Product Search**: This main section houses:
+        -   Product Search Queries: Identifies and lists product-specific search queries.
+        -   Product Search Results: Presents detailed information about products found through search, including titles, prices, ratings, and merchant information, while filtering out results with specific tags to reduce clutter.
+    All main and sub-sections only appear when relevant data is present, preventing clutter.
 -   **User Message Display**: Shows the messages you, as the user, have sent in the conversation.
 -   **Reasoning Analysis**: Extracts and displays ChatGPT's internal reasoning process, including thought summaries and detailed content from its decision-making process.
--   **Product Search Results**: Presents detailed information about products found through search, including titles, prices, ratings, and merchants, while filtering out results with specific tags to reduce clutter.
 -   **Collapsible Sections**: Search result sections (Used, Unused, and Product) are now expandable/collapsible, allowing users to manage information density.
--   **Used Web Sources**: Highlights URLs from search results that ChatGPT explicitly referenced or used in its responses.
--   **Unused Web Sources**: Lists URLs from search results that were retrieved but not explicitly incorporated into ChatGPT's output.
 -   **Integrated Sidebar UI**: Presents all extracted data in a clean, collapsible sidebar directly on the ChatGPT conversation page for easy access and review.
 -   **Dynamic UI**: The entire user interface is dynamically created and injected into the page, ensuring a seamless experience without navigating away from your conversation.
 
