@@ -166,6 +166,55 @@
             return container;
         };
 
+        const createCollapsibleWrapper = (titleText, contentElements) => {
+            const container = document.createElement('div');
+            container.style.marginBottom = '20px';
+
+            const button = document.createElement('button');
+            button.textContent = titleText;
+            button.style.cssText = `
+                width: 100%;
+                background-color: #f0f0f0;
+                color: #333;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                padding: 14px 18px;
+                text-align: left;
+                cursor: pointer;
+                font-size: 1.2em;
+                font-weight: 600;
+                margin-bottom: 0px;
+                transition: background 0.2s, border 0.2s;
+            `;
+
+            const panel = document.createElement('div');
+            panel.style.cssText = `
+                padding: 12px 18px;
+                background-color: #fcfcfc;
+                border: 1px solid #ddd;
+                border-top: none;
+                border-radius: 0 0 6px 6px;
+                display: none;
+                font-size: 0.95em;
+                line-height: 1.5;
+                margin-bottom: 12px;
+            `;
+
+            contentElements.forEach(el => panel.appendChild(el));
+
+            button.onclick = () => {
+                const isHidden = panel.style.display === 'none';
+                panel.style.display = isHidden ? 'block' : 'none';
+                button.style.borderRadius = isHidden ? '6px 6px 0 0' : '6px';
+            };
+            button.onmouseover = () => { button.style.backgroundColor = '#e5e5e5'; button.style.borderColor = '#E60012'; };
+            button.onmouseout = () => { button.style.backgroundColor = '#f0f0f0'; button.style.borderColor = '#ccc'; };
+
+            container.appendChild(button);
+            container.appendChild(panel);
+            return container;
+        };
+
         // User Messages
         if (analysis.userMessages.length > 0) {
             const section = createSection('User Messages');
@@ -203,35 +252,115 @@
         // Search Queries
         if (analysis.queries.length > 0) {
             const section = createSection('Search Queries');
-            const ul = document.createElement('ul');
-            ul.style.cssText = 'padding-left: 20px; margin: 0 0 20px 0; list-style-type: disc;';
-            analysis.queries.forEach(q => {
-                const li = document.createElement('li');
-                li.textContent = q;
-                li.style.cssText = 'margin-bottom: 6px; font-size: 0.95em;';
-                ul.appendChild(li);
-            });
-            section.appendChild(ul);
+            
+            const generalQueriesContent = [];
+            if (analysis.generalQueries && analysis.generalQueries.length > 0) {
+                analysis.generalQueries.forEach(q => {
+                    const li = document.createElement('li');
+                    li.textContent = q;
+                    li.style.cssText = 'margin-bottom: 6px; font-size: 0.95em;';
+                    generalQueriesContent.push(li);
+                });
+            } else {
+                const p = document.createElement('p');
+                p.style.cssText = 'font-size: 0.95em; color: #555;';
+                p.textContent = '(None found)';
+                generalQueriesContent.push(p);
+            }
+            section.appendChild(createCollapsibleWrapper('General Search', generalQueriesContent));
+            
+            const productQueriesContent = [];
+            if (analysis.productQueries && analysis.productQueries.length > 0) {
+                analysis.productQueries.forEach(q => {
+                    const li = document.createElement('li');
+                    li.textContent = q;
+                    li.style.cssText = 'margin-bottom: 6px; font-size: 0.95em;';
+                    productQueriesContent.push(li);
+                });
+            } else {
+                const p = document.createElement('p');
+                p.style.cssText = 'font-size: 0.95em; color: #555;';
+                p.textContent = '(None found)';
+                productQueriesContent.push(p);
+            }
+            section.appendChild(createCollapsibleWrapper('Product Search', productQueriesContent));
+            
             contentArea.appendChild(section);
         }
 
         // Used Results
-        const usedSection = createSection(`${analysis.resultsUsed.length} Used Search Results`);
+        const usedResultsContent = [];
         if (analysis.resultsUsed.length > 0) {
-            analysis.resultsUsed.forEach(item => usedSection.appendChild(createAccordion(item)));
+            analysis.resultsUsed.forEach(item => usedResultsContent.push(createAccordion(item)));
         } else {
-            usedSection.innerHTML += '<p style="font-size: 0.95em; color: #555;">(None found)</p>';
+            const p = document.createElement('p');
+            p.style.cssText = 'font-size: 0.95em; color: #555;';
+            p.textContent = '(None found)';
+            usedResultsContent.push(p);
         }
-        contentArea.appendChild(usedSection);
+        contentArea.appendChild(createCollapsibleWrapper(`${analysis.resultsUsed.length} Used Search Results`, usedResultsContent));
 
         // Unused Results
-        const unusedSection = createSection(`${analysis.resultsUnused.length} Unused Search Results`);
+        const unusedResultsContent = [];
         if (analysis.resultsUnused.length > 0) {
-            analysis.resultsUnused.forEach(item => unusedSection.appendChild(createAccordion(item)));
+            analysis.resultsUnused.forEach(item => unusedResultsContent.push(createAccordion(item)));
         } else {
-            unusedSection.innerHTML += '<p style="font-size: 0.95em; color: #555;">(None found)</p>';
+            const p = document.createElement('p');
+            p.style.cssText = 'font-size: 0.95em; color: #555;';
+            p.textContent = '(None found)';
+            unusedResultsContent.push(p);
         }
-        contentArea.appendChild(unusedSection);
+        contentArea.appendChild(createCollapsibleWrapper(`${analysis.resultsUnused.length} Unused Search Results`, unusedResultsContent));
+
+        // Product Search Results
+        const productResultsContent = [];
+        if (analysis.productResults && analysis.productResults.length > 0) {
+            analysis.productResults.forEach(product => {
+                const productDiv = document.createElement('div');
+                productDiv.style.cssText = 'margin-bottom: 12px; padding: 10px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #E60012;';
+                
+                const productTitle = document.createElement('h4');
+                productTitle.textContent = product.title;
+                productTitle.style.cssText = 'margin: 0 0 8px 0; font-weight: 600; color: #E60012; font-size: 1em;';
+                productDiv.appendChild(productTitle);
+
+                if (product.price) {
+                    const productPrice = document.createElement('p');
+                    productPrice.innerHTML = `<strong>Price:</strong> ${product.price}`;
+                    productPrice.style.cssText = 'margin: 0 0 4px 0; font-size: 0.9em; color: #555;';
+                    productDiv.appendChild(productPrice);
+                }
+
+                if (product.rating !== 'N/A') {
+                    const productRating = document.createElement('p');
+                    productRating.innerHTML = `<strong>Rating:</strong> ${product.rating}/5 (${product.num_reviews} reviews)`;
+                    productRating.style.cssText = 'margin: 0 0 4px 0; font-size: 0.9em; color: #555;';
+                    productDiv.appendChild(productRating);
+                }
+
+                if (product.merchants) {
+                    const productMerchants = document.createElement('p');
+                    productMerchants.innerHTML = `<strong>Merchants:</strong> ${product.merchants}`;
+                    productMerchants.style.cssText = 'margin: 0 0 4px 0; font-size: 0.9em; color: #555;';
+                    productDiv.appendChild(productMerchants);
+                }
+
+                if (product.featured_tag) {
+                    const productTag = document.createElement('p');
+                    productTag.innerHTML = `<strong>Tag:</strong> ${product.featured_tag}`;
+                    productTag.style.cssText = 'margin: 0 0 4px 0; font-size: 0.9em; color: #555;';
+                    productDiv.appendChild(productTag);
+                }
+                
+                productResultsContent.push(productDiv);
+            });
+        } else {
+            const p = document.createElement('p');
+            p.style.cssText = 'font-size: 0.95em; color: #555;';
+            p.textContent = '(None found)';
+            productResultsContent.push(p);
+        }
+        contentArea.appendChild(createCollapsibleWrapper(`${analysis.productResults.length} Product Search Results`, productResultsContent));
     };
 
     // --- DATA FETCHING AND PROCESSING ---
@@ -261,12 +390,15 @@
             log('Conversation data retrieved.');
 
             const queries = new Set();
+            const generalQueries = new Set();
+            const productQueries = new Set();
             const resultsUsed = [];
+            const productResults = []; 
             const userMessages = new Set();
             const usedUrlsSet = new Set();
             const unusedUrlsSet = new Set();
             let resultsUnused = [];
-            const reasoningData = []; // New array to store reasoning data
+            const reasoningData = [];
 
             const convertDate = (v) => v && /^\d{10}$/.test(v) ? new Date(parseInt(v) * 1000).toISOString().split("T")[0] : v;
             const normalizeUrl = (url) => url ? url.split("?")[0].replace(/\/$/, "") : "";
@@ -301,16 +433,29 @@
                                 const trimmedPart = part.trim();
                                 if (trimmedPart) {
                                     queries.add(trimmedPart);
+                                    generalQueries.add(trimmedPart);
                                 }
                             });
                         }
                     });
                 }
 
-                // Extract text from content parts (recursively if JSON)
+                // Extract product queries from content
                 if (obj.content?.text) {
                     try {
                         const parsed = JSON.parse(obj.content.text);
+                        // Check for product_query in the parsed content
+                        if (parsed.product_query && Array.isArray(parsed.product_query.search)) {
+                            parsed.product_query.search.forEach(product => {
+                                if (product && typeof product === 'string') {
+                                    const trimmedProduct = product.trim();
+                                    if (trimmedProduct) {
+                                        queries.add(trimmedProduct);
+                                        productQueries.add(trimmedProduct);
+                                    }
+                                }
+                            });
+                        }
                         extractData(parsed);
                     } catch (e) { /* Not JSON, ignore */ }
                 }
@@ -330,6 +475,25 @@
                                         snippet: entry.snippet || ""
                                     });
                                 }
+                            });
+                        }
+                    });
+                }
+                
+                // Extract product search results from content_references
+                if (Array.isArray(obj.content_references)) {
+                    obj.content_references.forEach(ref => {
+                        if (ref.type === "products" && Array.isArray(ref.products)) {
+                            ref.products.forEach(product => {
+                                productResults.push({
+                                    title: product.title,
+                                    url: product.url || product.product_lookup_data?.url || '',
+                                    price: product.price || '',
+                                    rating: product.rating || 'N/A',
+                                    num_reviews: product.num_reviews || 'N/A',
+                                    merchants: product.merchants || '',
+                                    featured_tag: product.featured_tag || '',
+                                });
                             });
                         }
                     });
@@ -376,20 +540,117 @@
                             }
                         });
                     }
+                    
+                    // Also extract product references from assistant messages (tool responses)
+                    if (node.message?.author?.role === "tool" && node.message?.content?.content_type === "text" && Array.isArray(node.message.content?.parts)) {
+                        node.message.content.parts.forEach(part => {
+                            try {
+                                // Regex to find the product name and URL in the format "Product Name (URL)"
+                                const productPattern = /(.*?)\s*\((https?:\/\/[^\s]+)\)/g;
+                                let match;
+                                while ((match = productPattern.exec(part)) !== null) {
+                                    const productName = match[1].trim();
+                                    const productUrl = match[2].trim();
+                                    if (productName && productUrl) {
+                                        // Check if this product is already captured from content_references to avoid duplication
+                                        const existingProduct = productResults.find(p => p.title === productName);
+                                        if (existingProduct) {
+                                            // If product exists, update its URL if it was missing
+                                            if (!existingProduct.url) {
+                                                existingProduct.url = productUrl;
+                                            }
+                                        } else {
+                                            // Add new product with URL
+                                            productResults.push({ title: productName, url: productUrl, price: '', rating: 'N/A', num_reviews: 'N/A', merchants: '', featured_tag: '' });
+                                        }
+                                    }
+                                }
+
+                                // Extract Rating, Reviews, Price, and Merchants from text
+                                const ratingMatch = part.match(/\*Rating:\*\s*(\d+\.?\d*)\/5\s*\((\d+)\s*reviews\)/);
+                                if (ratingMatch) {
+                                    const rating = parseFloat(ratingMatch[1]);
+                                    const numReviews = parseInt(ratingMatch[2]);
+                                    // Find the most recently added product and update its rating/reviews
+                                    if (productResults.length > 0) {
+                                        const lastProduct = productResults[productResults.length - 1];
+                                        lastProduct.rating = rating;
+                                        lastProduct.num_reviews = numReviews;
+                                    }
+                                }
+
+                                const merchantsSectionMatch = part.match(/\*Merchants:\*\n([\s\S]*)/);
+                                if (merchantsSectionMatch && productResults.length > 0) {
+                                    const merchantsText = merchantsSectionMatch[1];
+                                    const merchantLines = merchantsText.split('\n').map(line => line.trim()).filter(line => line.startsWith('-'));
+                                    const lastProduct = productResults[productResults.length - 1];
+                                    
+                                    let extractedMerchants = [];
+                                    merchantLines.forEach(line => {
+                                        const priceMerchantMatch = line.match(/-\s*(.+):\s*(.+)/);
+                                        if (priceMerchantMatch) {
+                                            const price = priceMerchantMatch[1].trim();
+                                            const merchant = priceMerchantMatch[2].trim();
+                                            extractedMerchants.push(merchant); // Only push the merchant name
+                                            // Also update the main price for the product with the first price found
+                                            if (!lastProduct.price) {
+                                                lastProduct.price = price;
+                                            }
+                                        }
+                                    });
+                                    if (extractedMerchants.length > 0) {
+                                        lastProduct.merchants = extractedMerchants.join('; ');
+                                    }
+                                }
+
+                                // Also handle the specific product JSON structure if it exists
+                                const productJsonMatch = part.match(/\u2b80products\u2b82([^\u2b81]+)\u2b81/);
+                                if (productJsonMatch && productJsonMatch[1]) {
+                                    const productData = JSON.parse(productJsonMatch[1]);
+                                    if (Array.isArray(productData.selections)) {
+                                        productData.selections.forEach(selection => {
+                                            const productName = selection[1];
+                                            // Try to find the product in productResults and update its fields
+                                            const existingProduct = productResults.find(p => p.title === productName);
+                                            if (existingProduct) {
+                                                // Check for comprehensive product details in the selection's product object
+                                                if (selection[0]) {
+                                                    // Need to find the actual product object from the payload using the ID/key from selection[0]
+                                                    // For now, let's just ensure the details are consistent with what we extract from text
+                                                }
+                                            } else {
+                                                // This case should ideally not happen if content_references is processed first
+                                                // But as a fallback, add it if not found, though without full details here
+                                                productResults.push({ title: productName, url: '', price: '', rating: 'N/A', num_reviews: 'N/A', merchants: '', featured_tag: '' });
+                                            }
+                                        });
+                                    }
+                                }
+                            } catch (e) { /* Not valid, ignore */ }
+                        });
+                    }
                 });
             }
             log(`Found ${userMessages.size} user messages.`);
+            log(`Found ${productResults.length} product results.`);
 
             // Filter out used URLs from the unused list
             resultsUnused = resultsUnused.filter(r => !usedUrlsSet.has(normalizeUrl(r.url)));
             log(`Final unused results count: ${resultsUnused.length}.`);
 
+            // Filter out product results that have a 'featured_tag'
+            const filteredProductResults = productResults.filter(p => !p.featured_tag);
+            log(`Filtered out ${productResults.length - filteredProductResults.length} product results with tags.`);
+
             renderResults(contentArea, {
                 queries: Array.from(queries),
+                generalQueries: Array.from(generalQueries),
+                productQueries: Array.from(productQueries),
                 resultsUsed,
                 resultsUnused,
                 userMessages: Array.from(userMessages),
-                reasoningData: reasoningData
+                reasoningData: reasoningData,
+                productResults: filteredProductResults // Pass the filtered results
             });
             log('Analysis complete and rendered.');
 

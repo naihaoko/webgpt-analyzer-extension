@@ -8,9 +8,11 @@ This extension is particularly useful for understanding how ChatGPT leverages we
 
 ## Features
 
--   **Search Query Extraction**: Identifies and lists all search queries made by ChatGPT during a conversation.
+-   **Search Query Extraction**: Identifies and lists all search queries made by ChatGPT during a conversation, categorized into General Search and Product Search for clarity.
 -   **User Message Display**: Shows the messages you, as the user, have sent in the conversation.
 -   **Reasoning Analysis**: Extracts and displays ChatGPT's internal reasoning process, including thought summaries and detailed content from its decision-making process.
+-   **Product Search Results**: Presents detailed information about products found through search, including titles, prices, ratings, and merchants, while filtering out results with specific tags to reduce clutter.
+-   **Collapsible Sections**: Search result sections (Used, Unused, and Product) are now expandable/collapsible, allowing users to manage information density.
 -   **Used Web Sources**: Highlights URLs from search results that ChatGPT explicitly referenced or used in its responses.
 -   **Unused Web Sources**: Lists URLs from search results that were retrieved but not explicitly incorporated into ChatGPT's output.
 -   **Integrated Sidebar UI**: Presents all extracted data in a clean, collapsible sidebar directly on the ChatGPT conversation page for easy access and review.
@@ -49,8 +51,9 @@ To install and use the WebGPT Analyzer extension, follow these steps:
 -   **Content Script (`content.js`)**: This is the core of the extension. It performs the following actions:
     -   Dynamically creates and injects the sidebar UI into the ChatGPT page.
     -   Fetches conversation data from ChatGPT's internal `backend-api` using the user's session `accessToken`.
-    -   Parses the complex JSON structure of the conversation data to extract relevant information (search queries, user messages, reasoning thoughts, used/unused URLs).
+    -   Parses the complex JSON structure of the conversation data to extract relevant information (search queries, user messages, reasoning thoughts, product search results, used/unused URLs).
     -   Extracts ChatGPT's internal reasoning process by parsing `content_type: "thoughts"` data, including summary and detailed content fields.
+    -   Extracts detailed product search results, including product titles, URLs, prices, ratings, and merchant information.
     -   Renders the extracted data into the sidebar with appropriate styling and interactive elements (accordions).
     -   Includes logic to handle potential errors during data fetching or parsing.
 
@@ -65,7 +68,3 @@ To install and use the WebGPT Analyzer extension, follow these steps:
 ## Contributing
 
 Contributions are welcome! If you have suggestions for improvements, bug reports, or would like to contribute code, please feel free to open an issue or submit a pull request.
-
-## License
-
-This project is open-source and available under the [MIT License](LICENSE).
