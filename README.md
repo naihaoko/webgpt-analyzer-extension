@@ -8,21 +8,18 @@ This extension is particularly useful for understanding how ChatGPT leverages we
 
 ## Features
 
--   **Search Query Extraction**: Identifies and lists all search queries made by ChatGPT during a conversation, categorized into General Search and Product Search for clarity. These sections only appear when relevant data is present.
--   **Organized Search Results**: All search-related information is now logically grouped:
-    -   **General Search**: This main section houses:
-        -   General Search Queries: Identifies and lists general search queries.
-        -   Used Search Results: Highlights URLs from search results that ChatGPT explicitly referenced or used.
-        -   Unused Search Results: Lists URLs from search results that were retrieved but not explicitly incorporated.
-    -   **Product Search**: This main section houses:
-        -   Product Search Queries: Identifies and lists product-specific search queries.
-        -   Product Search Results: Presents detailed information about products found through search, including titles, prices, ratings, and merchant information, while filtering out results with specific tags to reduce clutter.
-    All main and sub-sections only appear when relevant data is present, preventing clutter.
--   **User Message Display**: Shows the messages you, as the user, have sent in the conversation.
+-   **Comprehensive Search Analysis**: Extracts and categorizes all search queries made by ChatGPT during conversations, with intelligent grouping and organization.
+-   **Unified Search Results Display**: All search-related information is organized in a streamlined Web Search section:
+    -   **Search Queries**: Complete list of all search queries performed by ChatGPT
+    -   **Used Search Results**: Web pages and product recommendations that ChatGPT explicitly referenced in its response, including both web citations and product suggestions with detailed information (price, rating, reviews, merchants)
+    -   **Unused Search Results**: Search results that were retrieved but not incorporated into the final response
+-   **Product Integration**: Product recommendations now appear seamlessly within the "Used Search Results" section, clearly marked with [Product] prefix and comprehensive details including pricing, ratings, and merchant information.
+-   **User Message Display**: Shows the complete conversation context by displaying all user messages sent during the conversation.
 -   **Reasoning Analysis**: Extracts and displays ChatGPT's internal reasoning process, including thought summaries and detailed content from its decision-making process.
--   **Collapsible Sections**: Search result sections (Used, Unused, and Product) are now expandable/collapsible, allowing users to manage information density.
--   **Integrated Sidebar UI**: Presents all extracted data in a clean, collapsible sidebar directly on the ChatGPT conversation page for easy access and review.
--   **Dynamic UI**: The entire user interface is dynamically created and injected into the page, ensuring a seamless experience without navigating away from your conversation.
+-   **Smart Data Handling**: Robust extraction logic that handles empty URLs, missing data fields, and various ChatGPT response formats with appropriate fallbacks.
+-   **Collapsible Interface**: All sections are expandable/collapsible, allowing users to focus on relevant information and manage display density.
+-   **Resilient Design**: Built with fallback CSS selectors and robust data parsing to maintain functionality across ChatGPT interface updates.
+-   **Integrated Sidebar UI**: Clean, professional sidebar interface that slides in smoothly without disrupting the ChatGPT conversation experience.
 
 ## Installation
 
@@ -46,7 +43,16 @@ To install and use the WebGPT Analyzer extension, follow these steps:
 
 2.  **Click the Extension Icon**: Click the "WebGPT Analyzer" icon in your Chrome toolbar.
 
-3.  **View Analysis**: A sidebar will appear on the right side of the ChatGPT page, displaying the extracted search queries, user messages, and categorized web sources. You can click on the result titles to expand/collapse their details.
+3.  **View Analysis**: A sidebar will appear on the right side of the ChatGPT page, displaying:
+    -   **User Messages**: Your conversation inputs
+    -   **Reasoning**: ChatGPT's internal thought process (when available)
+    -   **Web Search**: Comprehensive search analysis including:
+        -   Search queries performed by ChatGPT
+        -   Used search results (web pages and products ChatGPT referenced)
+        -   Unused search results (retrieved but not used)
+    -   **Product Results**: Detailed product information when ChatGPT searches for products
+
+    You can click on section headers to expand/collapse details for better information management.
 
 4.  **Close Sidebar**: To close the sidebar, click the "×" button in its header.
 
@@ -55,22 +61,14 @@ To install and use the WebGPT Analyzer extension, follow these steps:
 -   **Manifest V3**: The extension is built using Chrome Extension Manifest V3, adhering to the latest security and performance standards.
 -   **Background Script (`background.js`)**: Listens for the extension icon click and injects the `content.js` script into the active ChatGPT conversation tab.
 -   **Content Script (`content.js`)**: This is the core of the extension. It performs the following actions:
-    -   Dynamically creates and injects the sidebar UI into the ChatGPT page.
+    -   Dynamically creates and injects the sidebar UI into the ChatGPT page with resilient CSS selectors.
     -   Fetches conversation data from ChatGPT's internal `backend-api` using the user's session `accessToken`.
-    -   Parses the complex JSON structure of the conversation data to extract relevant information (search queries, user messages, reasoning thoughts, product search results, used/unused URLs).
-    -   Extracts ChatGPT's internal reasoning process by parsing `content_type: "thoughts"` data, including summary and detailed content fields.
-    -   Extracts detailed product search results, including product titles, URLs, prices, ratings, and merchant information.
-    -   Renders the extracted data into the sidebar with appropriate styling and interactive elements (accordions).
-    -   Includes logic to handle potential errors during data fetching or parsing.
-
-## Future Improvements
-
--   **Export Functionality**: Add options to export the extracted data (e.g., to CSV, JSON, or Markdown).
--   **Enhanced Query Parsing**: Implement more sophisticated natural language processing to better identify and separate complex or combined search queries.
--   **UI/UX Enhancements**: Further refine the sidebar's appearance and interactivity based on user feedback.
--   **Cross-Browser Compatibility**: Extend support to other browsers like Firefox or Edge.
--   **Settings Page**: Allow users to customize certain aspects of the extension's behavior or appearance.
-
-## Contributing
-
-Contributions are welcome! If you have suggestions for improvements, bug reports, or would like to contribute code, please feel free to open an issue or submit a pull request.
+    -   Uses efficient single-pass parsing to extract data from ChatGPT's conversation JSON structure:
+        -   **User Messages**: From `role === 'user'` messages with `content_type === 'text'`
+        -   **Search Queries**: From `role === 'tool'` + `author.name === 'web.run'` messages
+        -   **Search Results**: From tool message metadata in `search_result_groups`
+        -   **Used Results**: From final assistant message `content_references` (both web pages and products)
+        -   **Reasoning Data**: From `content_type === 'thoughts'` messages with summary/content pairs
+    -   Implements robust data handling with product ID-based deduplication (not URL-based) and fallback values for missing data.
+    -   Renders extracted data into an interactive sidebar with accordion-style collapsible sections.
+    -   Includes comprehensive error handling for network issues, authentication failures, and malformed data structures.

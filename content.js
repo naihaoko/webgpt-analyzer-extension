@@ -9,7 +9,13 @@
             existingSidebar.remove();
         }
         // Restore main content width if it was adjusted
-        const mainContent = document.querySelector('.relative.z-0.flex.h-full.w-full.overflow-hidden');
+        // WARNING: This selector is fragile and may break with ChatGPT UI updates
+        // Look for main content area using multiple fallback selectors
+        const mainContent = document.querySelector('.relative.z-0.flex.h-full.w-full.overflow-hidden') ||
+                           document.querySelector('main') ||
+                           document.querySelector('[role="main"]') ||
+                           document.querySelector('.flex.h-full.w-full') ||
+                           document.querySelector('#__next > div > div');
         if (mainContent) {
             mainContent.style.width = '100%';
         }
@@ -88,7 +94,13 @@
         }, 10);
 
         // Adjust main content width to make space for the sidebar
-        const mainContent = document.querySelector('.relative.z-0.flex.h-full.w-full.overflow-hidden');
+        // WARNING: This selector is fragile and may break with ChatGPT UI updates
+        // Look for main content area using multiple fallback selectors
+        const mainContent = document.querySelector('.relative.z-0.flex.h-full.w-full.overflow-hidden') ||
+                           document.querySelector('main') ||
+                           document.querySelector('[role="main"]') ||
+                           document.querySelector('.flex.h-full.w-full') ||
+                           document.querySelector('#__next > div > div');
         if (mainContent) {
             mainContent.style.width = `calc(100% - ${sidebar.style.width})`;
         }
@@ -249,19 +261,19 @@
             contentArea.appendChild(section);
         }
 
-        // General Search Main Section
-        const generalSearchSection = createSection('General Search');
-        const generalSearchSectionContent = [];
+        // Web Search Main Section (consolidated)
+        const webSearchSection = createSection('Web Search');
+        const webSearchSectionContent = [];
 
-        if (analysis.generalQueries && analysis.generalQueries.length > 0) {
-            const generalQueriesContent = [];
-            analysis.generalQueries.forEach(q => {
+        if (analysis.allQueries && analysis.allQueries.length > 0) {
+            const allQueriesContent = [];
+            analysis.allQueries.forEach(q => {
                 const li = document.createElement('li');
                 li.textContent = q;
                 li.style.cssText = 'margin-bottom: 6px; font-size: 0.95em;';
-                generalQueriesContent.push(li);
+                allQueriesContent.push(li);
             });
-            generalSearchSectionContent.push(createCollapsibleWrapper('General Search Queries', generalQueriesContent));
+            webSearchSectionContent.push(createCollapsibleWrapper('Search Queries', allQueriesContent));
         }
 
         const usedResultsContent = [];
@@ -269,7 +281,7 @@
             analysis.resultsUsed.forEach(item => usedResultsContent.push(createAccordion(item)));
         }
         if (usedResultsContent.length > 0) {
-            generalSearchSectionContent.push(createCollapsibleWrapper(`${analysis.resultsUsed.length} Used Search Results`, usedResultsContent));
+            webSearchSectionContent.push(createCollapsibleWrapper(`${analysis.resultsUsed.length} Used Search Results`, usedResultsContent));
         }
 
         const unusedResultsContent = [];
@@ -277,35 +289,23 @@
             analysis.resultsUnused.forEach(item => unusedResultsContent.push(createAccordion(item)));
         }
         if (unusedResultsContent.length > 0) {
-            generalSearchSectionContent.push(createCollapsibleWrapper(`${analysis.resultsUnused.length} Unused Search Results`, unusedResultsContent));
+            webSearchSectionContent.push(createCollapsibleWrapper(`${analysis.resultsUnused.length} Unused Search Results`, unusedResultsContent));
         }
 
-        if (generalSearchSectionContent.length > 0) {
-            generalSearchSectionContent.forEach(el => generalSearchSection.appendChild(el));
-            contentArea.appendChild(generalSearchSection);
+        if (webSearchSectionContent.length > 0) {
+            webSearchSectionContent.forEach(el => webSearchSection.appendChild(el));
+            contentArea.appendChild(webSearchSection);
         }
 
-        // Product Search Main Section
-        const productSearchSection = createSection('Product Search');
-        const productSearchSectionContent = [];
-
-        if (analysis.productQueries && analysis.productQueries.length > 0) {
-            const productQueriesContent = [];
-            analysis.productQueries.forEach(q => {
-                const li = document.createElement('li');
-                li.textContent = q;
-                li.style.cssText = 'margin-bottom: 6px; font-size: 0.95em;';
-                productQueriesContent.push(li);
-            });
-            productSearchSectionContent.push(createCollapsibleWrapper('Product Search Queries', productQueriesContent));
-        }
-
+        // Product Results Section (separate from search queries)
         if (analysis.productResults && analysis.productResults.length > 0) {
+            const productSection = createSection('Product Results');
             const productResultsContent = [];
+
             analysis.productResults.forEach(product => {
                 const productDiv = document.createElement('div');
                 productDiv.style.cssText = 'margin-bottom: 12px; padding: 10px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #E60012;';
-                
+
                 const productTitle = document.createElement('h4');
                 productTitle.textContent = product.title;
                 productTitle.style.cssText = 'margin: 0 0 8px 0; font-weight: 600; color: #E60012; font-size: 1em;';
@@ -334,12 +334,10 @@
 
                 productResultsContent.push(productDiv);
             });
-            productSearchSectionContent.push(createCollapsibleWrapper(`${analysis.productResults.length} Product Search Results`, productResultsContent));
-        }
 
-        if (productSearchSectionContent.length > 0) {
-            productSearchSectionContent.forEach(el => productSearchSection.appendChild(el));
-            contentArea.appendChild(productSearchSection);
+            const productWrapper = createCollapsibleWrapper(`${analysis.productResults.length} Product Results`, productResultsContent);
+            productSection.appendChild(productWrapper);
+            contentArea.appendChild(productSection);
         }
     };
 
@@ -370,249 +368,162 @@
             log('Conversation data retrieved.');
 
             const queries = new Set();
-            const generalQueries = new Set();
-            const productQueries = new Set();
+            const allQueries = new Set(); // Consolidated queries from all sources
             const resultsUsed = [];
             const productResults = []; 
             const userMessages = new Set();
             const usedUrlsSet = new Set();
             const unusedUrlsSet = new Set();
+            const usedProductIdsSet = new Set(); // Track product IDs separately
             let resultsUnused = [];
             const reasoningData = [];
 
             const convertDate = (v) => v && /^\d{10}$/.test(v) ? new Date(parseInt(v) * 1000).toISOString().split("T")[0] : v;
             const normalizeUrl = (url) => url ? url.split("?")[0].replace(/\/$/, "") : "";
 
-            const extractData = (obj) => {
-                if (!obj || typeof obj !== "object") return;
-                if (Array.isArray(obj)) {
-                    obj.forEach(item => extractData(item));
-                    return;
-                }
-                
-                // Extract thoughts data (summary and content)
-                if (obj.content_type === "thoughts" && Array.isArray(obj.thoughts)) {
-                    obj.thoughts.forEach(thought => {
-                        if (thought.summary && thought.content) {
-                            reasoningData.push({
-                                summary: thought.summary,
-                                content: thought.content
-                            });
-                        }
-                    });
-                }
-                
-                // Extract search queries from various possible locations
-                const searchQueries = obj.search_queries || obj.metadata?.search_queries || obj.search_query;
-                if (Array.isArray(searchQueries)) {
-                    searchQueries.forEach(sq => {
-                        if (sq.q) {
-                            // Attempt to split concatenated queries
-                            const parts = sq.q.split(/\s*and\s*|\s*what is\s*/i); // Split by " and " or " what is " (case-insensitive)
-                            parts.forEach(part => {
-                                const trimmedPart = part.trim();
-                                if (trimmedPart) {
-                                    queries.add(trimmedPart);
-                                    generalQueries.add(trimmedPart);
-                                }
-                            });
-                        }
-                    });
-                }
+            // Single-pass extraction through all nodes for efficiency
+            let finalAssistantNode = null;
 
-                // Extract product queries from content
-                if (obj.content?.text) {
-                    try {
-                        const parsed = JSON.parse(obj.content.text);
-                        // Check for product_query in the parsed content
-                        if (parsed.product_query && Array.isArray(parsed.product_query.search)) {
-                            parsed.product_query.search.forEach(product => {
-                                if (product && typeof product === 'string') {
-                                    const trimmedProduct = product.trim();
-                                    if (trimmedProduct) {
-                                        queries.add(trimmedProduct);
-                                        productQueries.add(trimmedProduct);
-                                    }
-                                }
-                            });
-                        }
-                        extractData(parsed);
-                    } catch (e) { /* Not JSON, ignore */ }
-                }
-
-                // Extract all potential search results
-                if (Array.isArray(obj.search_result_groups)) {
-                    obj.search_result_groups.forEach(group => {
-                        if (Array.isArray(group.entries)) {
-                            group.entries.forEach(entry => {
-                                const normalized = normalizeUrl(entry.url);
-                                if (normalized && !unusedUrlsSet.has(normalized)) {
-                                    unusedUrlsSet.add(normalized);
-                                    resultsUnused.push({
-                                        title: entry.title || entry.url,
-                                        url: entry.url,
-                                        pub_date: convertDate(String(entry.pub_date).split(".")[0]),
-                                        snippet: entry.snippet || ""
-                                    });
-                                }
-                            });
-                        }
-                    });
-                }
-                
-                // Extract product search results from content_references
-                if (Array.isArray(obj.content_references)) {
-                    obj.content_references.forEach(ref => {
-                        if (ref.type === "products" && Array.isArray(ref.products)) {
-                            ref.products.forEach(product => {
-                                productResults.push({
-                                    title: product.title,
-                                    url: product.url || product.product_lookup_data?.url || '',
-                                    price: product.price || '',
-                                    rating: product.rating || 'N/A',
-                                    num_reviews: product.num_reviews || 'N/A',
-                                    merchants: product.merchants || '',
-                                    featured_tag: product.featured_tag || '',
-                                });
-                            });
-                        }
-                    });
-                }
-
-                // Recurse through object properties
-                Object.values(obj).forEach(value => extractData(value));
-            };
-
-            extractData(data);
-            log(`Initial extraction found ${queries.size} queries and ${resultsUnused.length} potential results.`);
-
-            // Identify explicitly used URLs from the final message's metadata
-            const finalNodeKey = data.current_node;
-            const finalNode = data.mapping && data.mapping[finalNodeKey];
-            if (finalNode?.message?.metadata?.content_references) {
-                finalNode.message.metadata.content_references.forEach(ref => {
-                    if (ref.type === "grouped_webpages") {
-                        const items = [...(ref.items || []), ...(ref.fallback_items || [])];
-                        items.forEach(item => {
-                            const normalized = normalizeUrl(item.url);
-                            if (normalized && !usedUrlsSet.has(normalized)) {
-                                usedUrlsSet.add(normalized);
-                                resultsUsed.push({
-                                    title: item.title || item.url,
-                                    url: item.url,
-                                    pub_date: convertDate(String(item.pub_date).split(".")[0]),
-                                    snippet: item.snippet || ""
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-            log(`Found ${resultsUsed.length} explicitly used results.`);
-
-            // Extract user messages from the entire conversation
             if (data.mapping) {
                 Object.values(data.mapping).forEach(node => {
-                    if (node.message?.author?.role === "user" && Array.isArray(node.message.content?.parts)) {
-                        node.message.content.parts.forEach(p => {
-                            if (p && typeof p === 'string' && p.trim()) {
-                                userMessages.add(p.trim());
+                    if (!node.message) return;
+
+                    const role = node.message.author?.role;
+                    const contentType = node.message.content?.content_type;
+                    const authorName = node.message.author?.name;
+
+                    // Extract user messages
+                    if (role === 'user' && contentType === 'text' && Array.isArray(node.message.content?.parts)) {
+                        const userPrompt = node.message.content.parts[0];
+                        if (userPrompt && typeof userPrompt === 'string' && userPrompt.trim()) {
+                            userMessages.add(userPrompt.trim());
+                        }
+                    }
+
+                    // Extract search queries and results from tool messages
+                    else if (role === 'tool' && authorName === 'web.run') {
+                        // Extract all search queries
+                        if (node.message.metadata?.search_model_queries?.queries &&
+                            Array.isArray(node.message.metadata.search_model_queries.queries)) {
+                            node.message.metadata.search_model_queries.queries.forEach(searchQuery => {
+                                if (searchQuery && typeof searchQuery === 'string') {
+                                    const trimmedQuery = searchQuery.trim();
+                                    if (trimmedQuery) {
+                                        queries.add(trimmedQuery);
+                                        allQueries.add(trimmedQuery);
+                                    }
+                                }
+                            });
+                        }
+
+                        // Extract all search results
+                        if (node.message.metadata?.search_result_groups &&
+                            Array.isArray(node.message.metadata.search_result_groups)) {
+                            node.message.metadata.search_result_groups.forEach(group => {
+                                if (Array.isArray(group.entries)) {
+                                    group.entries.forEach(entry => {
+                                        const normalized = normalizeUrl(entry.url);
+                                        if (normalized && !unusedUrlsSet.has(normalized)) {
+                                            unusedUrlsSet.add(normalized);
+                                            resultsUnused.push({
+                                                title: entry.title || entry.url,
+                                                url: entry.url,
+                                                pub_date: convertDate(String(entry.pub_date).split(".")[0]),
+                                                snippet: entry.snippet || ""
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    }
+
+                    // Extract reasoning data from thoughts
+                    else if (contentType === 'thoughts' && Array.isArray(node.message.content.thoughts)) {
+                        node.message.content.thoughts.forEach(thought => {
+                            if (thought.summary && thought.content) {
+                                reasoningData.push({
+                                    summary: thought.summary,
+                                    content: thought.content
+                                });
                             }
                         });
                     }
-                    
-                    // Also extract product references from assistant messages (tool responses)
-                    if (node.message?.author?.role === "tool" && node.message?.content?.content_type === "text" && Array.isArray(node.message.content?.parts)) {
-                        node.message.content.parts.forEach(part => {
-                            try {
-                                // Regex to find the product name and URL in the format "Product Name (URL)"
-                                const productPattern = /(.*?)\s*\((https?:\/\/[^\s]+)\)/g;
-                                let match;
-                                while ((match = productPattern.exec(part)) !== null) {
-                                    const productName = match[1].trim();
-                                    const productUrl = match[2].trim();
-                                    if (productName && productUrl) {
-                                        // Check if this product is already captured from content_references to avoid duplication
-                                        const existingProduct = productResults.find(p => p.title === productName);
-                                        if (existingProduct) {
-                                            // If product exists, update its URL if it was missing
-                                            if (!existingProduct.url) {
-                                                existingProduct.url = productUrl;
-                                            }
-                                        } else {
-                                            // Add new product with URL
-                                            productResults.push({ title: productName, url: productUrl, price: '', rating: 'N/A', num_reviews: 'N/A', merchants: '', featured_tag: '' });
-                                        }
-                                    }
-                                }
 
-                                // Extract Rating, Reviews, Price, and Merchants from text
-                                const ratingMatch = part.match(/\*Rating:\*\s*(\d+\.?\d*)\/5\s*\((\d+)\s*reviews\)/);
-                                if (ratingMatch) {
-                                    const rating = parseFloat(ratingMatch[1]);
-                                    const numReviews = parseInt(ratingMatch[2]);
-                                    // Find the most recently added product and update its rating/reviews
-                                    if (productResults.length > 0) {
-                                        const lastProduct = productResults[productResults.length - 1];
-                                        lastProduct.rating = rating;
-                                        lastProduct.num_reviews = numReviews;
-                                    }
-                                }
+                    // Track final assistant message for used results extraction
+                    if (role === 'assistant' && node.message.end_turn === true) {
+                        finalAssistantNode = node;
+                    }
 
-                                const merchantsSectionMatch = part.match(/\*Merchants:\*\n([\s\S]*)/);
-                                if (merchantsSectionMatch && productResults.length > 0) {
-                                    const merchantsText = merchantsSectionMatch[1];
-                                    const merchantLines = merchantsText.split('\n').map(line => line.trim()).filter(line => line.startsWith('-'));
-                                    const lastProduct = productResults[productResults.length - 1];
-                                    
-                                    let extractedMerchants = [];
-                                    merchantLines.forEach(line => {
-                                        const priceMerchantMatch = line.match(/-\s*(.+):\s*(.+)/);
-                                        if (priceMerchantMatch) {
-                                            const price = priceMerchantMatch[1].trim();
-                                            const merchant = priceMerchantMatch[2].trim();
-                                            extractedMerchants.push(merchant); // Only push the merchant name
-                                            // Also update the main price for the product with the first price found
-                                            if (!lastProduct.price) {
-                                                lastProduct.price = price;
-                                            }
-                                        }
+                    // Extract product results from content_references
+                    if (node.message?.metadata?.content_references &&
+                        Array.isArray(node.message.metadata.content_references)) {
+                        node.message.metadata.content_references.forEach(ref => {
+                            if (ref.type === "products" && Array.isArray(ref.products)) {
+                                ref.products.forEach(product => {
+                                    productResults.push({
+                                        title: product.title || 'Unknown Product',
+                                        url: product.url || product.product_lookup_data?.url || '',
+                                        price: product.price || 'Price not available',
+                                        rating: product.rating || 'N/A',
+                                        num_reviews: product.num_reviews || 'N/A',
+                                        merchants: product.merchants || 'See merchants',
+                                        featured_tag: product.featured_tag || '',
                                     });
-                                    if (extractedMerchants.length > 0) {
-                                        lastProduct.merchants = extractedMerchants.join('; ');
-                                    }
-                                }
-
-                                // Also handle the specific product JSON structure if it exists
-                                const productJsonMatch = part.match(/\u2b80products\u2b82([^\u2b81]+)\u2b81/);
-                                if (productJsonMatch && productJsonMatch[1]) {
-                                    const productData = JSON.parse(productJsonMatch[1]);
-                                    if (Array.isArray(productData.selections)) {
-                                        productData.selections.forEach(selection => {
-                                            const productName = selection[1];
-                                            // Try to find the product in productResults and update its fields
-                                            const existingProduct = productResults.find(p => p.title === productName);
-                                            if (existingProduct) {
-                                                // Check for comprehensive product details in the selection's product object
-                                                if (selection[0]) {
-                                                    // Need to find the actual product object from the payload using the ID/key from selection[0]
-                                                    // For now, let's just ensure the details are consistent with what we extract from text
-                                                }
-                                            } else {
-                                                // This case should ideally not happen if content_references is processed first
-                                                // But as a fallback, add it if not found, though without full details here
-                                                productResults.push({ title: productName, url: '', price: '', rating: 'N/A', num_reviews: 'N/A', merchants: '', featured_tag: '' });
-                                            }
-                                        });
-                                    }
-                                }
-                            } catch (e) { /* Not valid, ignore */ }
+                                });
+                            }
                         });
                     }
                 });
+
+                // Extract used results from final assistant message
+                if (finalAssistantNode?.message?.metadata?.content_references) {
+                    finalAssistantNode.message.metadata.content_references.forEach(ref => {
+                        if (ref.type === "grouped_webpages") {
+                            const items = ref.items || [];
+                            items.forEach(item => {
+                                const normalized = normalizeUrl(item.url);
+                                if (normalized && !usedUrlsSet.has(normalized)) {
+                                    usedUrlsSet.add(normalized);
+                                    resultsUsed.push({
+                                        title: item.title || item.url,
+                                        url: item.url,
+                                        pub_date: convertDate(String(item.pub_date).split(".")[0]),
+                                        snippet: item.snippet || ""
+                                    });
+                                }
+                            });
+                        }
+                        // Process product references as used results
+                        else if (ref.type === "products" && Array.isArray(ref.products)) {
+                            ref.products.forEach(product => {
+                                const productId = product.id;
+                                const productUrl = product.url || product.product_lookup_data?.url || '#';
+
+                                // Create descriptive snippet from product details
+                                const price = product.price || 'N/A';
+                                const rating = product.rating || 'N/A';
+                                const numReviews = product.num_reviews || 'N/A';
+                                const merchants = product.merchants || 'N/A';
+                                const snippet = `Price: ${price} | Rating: ${rating}/5 (${numReviews} reviews) | Merchants: ${merchants}`;
+
+                                if (productId && !usedProductIdsSet.has(productId)) {
+                                    usedProductIdsSet.add(productId);
+                                    resultsUsed.push({
+                                        title: `[Product] ${product.title || 'Unknown Product'}`,
+                                        url: productUrl,
+                                        pub_date: 'Product Result',
+                                        snippet: snippet
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
             }
-            log(`Found ${userMessages.size} user messages.`);
-            log(`Found ${productResults.length} product results.`);
+
+            log(`Extracted ${queries.size} search queries, ${resultsUnused.length} total results, ${userMessages.size} user messages`);
+            log(`Found ${resultsUsed.length} used results, ${productResults.length} product results, ${reasoningData.length} reasoning entries`);
 
             // Filter out used URLs from the unused list
             resultsUnused = resultsUnused.filter(r => !usedUrlsSet.has(normalizeUrl(r.url)));
@@ -624,8 +535,7 @@
 
             renderResults(contentArea, {
                 queries: Array.from(queries),
-                generalQueries: Array.from(generalQueries),
-                productQueries: Array.from(productQueries),
+                allQueries: Array.from(allQueries),
                 resultsUsed,
                 resultsUnused,
                 userMessages: Array.from(userMessages),
