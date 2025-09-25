@@ -18,6 +18,7 @@
                            document.querySelector('#__next > div > div');
         if (mainContent) {
             mainContent.style.width = '100%';
+            mainContent.style.transition = '';
         }
     };
 
@@ -30,11 +31,16 @@
         log('Creating UI.');
         const sidebar = document.createElement('div');
         sidebar.id = 'webgpt-analyzer-sidebar';
+
+        // Get stored width or use default
+        const storedWidth = localStorage.getItem('webgpt-analyzer-width') || '450';
+        const sidebarWidth = Math.max(300, Math.min(800, parseInt(storedWidth))); // Min 300px, max 800px
+
         sidebar.style.cssText = `
             position: fixed;
             top: 0;
             right: 0;
-            width: 450px;
+            width: ${sidebarWidth}px;
             height: 100%;
             background-color: #fff;
             color: #333;
@@ -46,7 +52,131 @@
             box-shadow: -5px 0 15px rgba(0,0,0,0.2);
             transform: translateX(100%);
             transition: transform 0.3s ease-in-out;
+            min-width: 300px;
+            max-width: 800px;
         `;
+
+        // Create drag handle for resizing
+        const dragHandle = document.createElement('div');
+        dragHandle.style.cssText = `
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 8px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 20001;
+            user-select: none;
+        `;
+
+        // Add hover effect for drag handle
+        const dragIndicator = document.createElement('div');
+        dragIndicator.style.cssText = `
+            position: absolute;
+            left: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 40px;
+            background: #E60012;
+            border-radius: 2px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        `;
+
+        dragHandle.appendChild(dragIndicator);
+        sidebar.appendChild(dragHandle);
+
+        // Drag functionality
+        let isDragging = false;
+        let startX = 0;
+        let startWidth = sidebarWidth;
+
+        dragHandle.addEventListener('mouseenter', () => {
+            dragIndicator.style.opacity = '0.6';
+        });
+
+        dragHandle.addEventListener('mouseleave', () => {
+            if (!isDragging) {
+                dragIndicator.style.opacity = '0';
+            }
+        });
+
+        dragHandle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startWidth = parseInt(sidebar.style.width);
+            dragIndicator.style.opacity = '1';
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const deltaX = startX - e.clientX; // Reverse direction for right-side panel
+            const newWidth = Math.max(300, Math.min(800, startWidth + deltaX));
+
+            sidebar.style.width = `${newWidth}px`;
+
+            // Update main content width
+            updateMainContentWidth(newWidth);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                dragIndicator.style.opacity = '0';
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+
+                // Save width to localStorage
+                const finalWidth = parseInt(sidebar.style.width);
+                localStorage.setItem('webgpt-analyzer-width', finalWidth.toString());
+            }
+        });
+
+        // Function to update main content width
+        const updateMainContentWidth = (sidebarWidth) => {
+            const mainContent = document.querySelector('.relative.z-0.flex.h-full.w-full.overflow-hidden') ||
+                               document.querySelector('main') ||
+                               document.querySelector('[role="main"]') ||
+                               document.querySelector('.flex.h-full.w-full') ||
+                               document.querySelector('#__next > div > div');
+            if (mainContent) {
+                // On mobile screens, overlay the sidebar instead of resizing
+                if (window.innerWidth < 768) {
+                    mainContent.style.width = '100%';
+                } else {
+                    mainContent.style.width = `calc(100% - ${sidebarWidth}px)`;
+                }
+                mainContent.style.transition = 'width 0.1s ease';
+            }
+        };
+
+        // Add responsive behavior
+        const handleResize = () => {
+            const currentWidth = parseInt(sidebar.style.width);
+            if (window.innerWidth < 768) {
+                // Mobile: Overlay mode
+                sidebar.style.position = 'fixed';
+                sidebar.style.width = '100%';
+                sidebar.style.maxWidth = '400px';
+                updateMainContentWidth(0);
+            } else {
+                // Desktop: Side-by-side mode
+                sidebar.style.position = 'fixed';
+                sidebar.style.width = `${Math.min(currentWidth, window.innerWidth * 0.6)}px`;
+                updateMainContentWidth(parseInt(sidebar.style.width));
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        // Initial responsive setup
+        handleResize();
 
         const header = document.createElement('div');
         header.style.cssText = `
@@ -91,19 +221,9 @@
         // Animate sidebar in
         setTimeout(() => {
             sidebar.style.transform = 'translateX(0)';
+            // Adjust main content width using the new function
+            updateMainContentWidth(sidebarWidth);
         }, 10);
-
-        // Adjust main content width to make space for the sidebar
-        // WARNING: This selector is fragile and may break with ChatGPT UI updates
-        // Look for main content area using multiple fallback selectors
-        const mainContent = document.querySelector('.relative.z-0.flex.h-full.w-full.overflow-hidden') ||
-                           document.querySelector('main') ||
-                           document.querySelector('[role="main"]') ||
-                           document.querySelector('.flex.h-full.w-full') ||
-                           document.querySelector('#__next > div > div');
-        if (mainContent) {
-            mainContent.style.width = `calc(100% - ${sidebar.style.width})`;
-        }
 
         return contentArea;
     };
@@ -227,38 +347,40 @@
             return container;
         };
 
-        // User Messages
+        // User Messages (collapsible)
         if (analysis.userMessages.length > 0) {
-            const section = createSection('User Messages');
+            const userMessagesContent = [];
             analysis.userMessages.forEach(msg => {
                 const p = document.createElement('p');
                 p.textContent = msg;
                 p.style.cssText = 'margin: 4px 0; font-size: 0.95em;';
-                section.appendChild(p);
+                userMessagesContent.push(p);
             });
-            contentArea.appendChild(section);
+            const userMessagesWrapper = createCollapsibleWrapper(`${analysis.userMessages.length} User Messages`, userMessagesContent);
+            contentArea.appendChild(userMessagesWrapper);
         }
 
-        // Reasoning
+        // Reasoning (collapsible)
         if (analysis.reasoningData && analysis.reasoningData.length > 0) {
-            const section = createSection('Reasoning');
+            const reasoningContent = [];
             analysis.reasoningData.forEach(data => {
                 const summaryDiv = document.createElement('div');
                 summaryDiv.style.cssText = 'margin-bottom: 12px; padding: 10px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #E60012;';
-                
+
                 const summaryTitle = document.createElement('h4');
                 summaryTitle.textContent = data.summary;
                 summaryTitle.style.cssText = 'margin: 0 0 8px 0; font-weight: 600; color: #E60012; font-size: 1em;';
                 summaryDiv.appendChild(summaryTitle);
-                
+
                 const contentP = document.createElement('p');
                 contentP.textContent = data.content;
                 contentP.style.cssText = 'margin: 0; font-size: 0.9em; line-height: 1.4; color: #555;';
                 summaryDiv.appendChild(contentP);
-                
-                section.appendChild(summaryDiv);
+
+                reasoningContent.push(summaryDiv);
             });
-            contentArea.appendChild(section);
+            const reasoningWrapper = createCollapsibleWrapper(`${analysis.reasoningData.length} Reasoning Entries`, reasoningContent);
+            contentArea.appendChild(reasoningWrapper);
         }
 
         // Web Search Main Section (consolidated)
@@ -370,11 +492,12 @@
             const queries = new Set();
             const allQueries = new Set(); // Consolidated queries from all sources
             const resultsUsed = [];
-            const productResults = []; 
+            const productResults = [];
             const userMessages = new Set();
             const usedUrlsSet = new Set();
             const unusedUrlsSet = new Set();
             const usedProductIdsSet = new Set(); // Track product IDs separately
+            const productResultsIdsSet = new Set(); // Track product IDs for Product Results section
             let resultsUnused = [];
             const reasoningData = [];
 
@@ -438,7 +561,27 @@
                         }
                     }
 
-                    // Extract reasoning data from thoughts
+                    // Extract reasoning data from turn_summary (new format)
+                    if (node.message?.metadata?.turn_summary) {
+                        const turnSummary = node.message.metadata.turn_summary;
+                        if (turnSummary && typeof turnSummary === 'string' && turnSummary.trim()) {
+                            // Create a more descriptive turn identifier
+                            const turnNumber = reasoningData.length + 1;
+                            const timestamp = node.message?.create_time ?
+                                new Date(node.message.create_time * 1000).toLocaleTimeString() : '';
+                            const displayTitle = timestamp ?
+                                `Turn ${turnNumber} Summary (${timestamp})` :
+                                `Turn ${turnNumber} Summary`;
+
+                            reasoningData.push({
+                                summary: displayTitle,
+                                content: turnSummary.trim(),
+                                timestamp: node.message?.create_time || 0
+                            });
+                        }
+                    }
+
+                    // Legacy: Extract reasoning data from thoughts (older format)
                     else if (contentType === 'thoughts' && Array.isArray(node.message.content.thoughts)) {
                         node.message.content.thoughts.forEach(thought => {
                             if (thought.summary && thought.content) {
@@ -455,21 +598,62 @@
                         finalAssistantNode = node;
                     }
 
-                    // Extract product results from content_references
-                    if (node.message?.metadata?.content_references &&
+                    // Extract used results and products from ALL assistant messages (multi-turn support)
+                    if (role === 'assistant' && node.message?.metadata?.content_references &&
                         Array.isArray(node.message.metadata.content_references)) {
                         node.message.metadata.content_references.forEach(ref => {
-                            if (ref.type === "products" && Array.isArray(ref.products)) {
+                            // Extract used web pages from any assistant message
+                            if (ref.type === "grouped_webpages") {
+                                const items = ref.items || [];
+                                items.forEach(item => {
+                                    const normalized = normalizeUrl(item.url);
+                                    if (normalized && !usedUrlsSet.has(normalized)) {
+                                        usedUrlsSet.add(normalized);
+                                        resultsUsed.push({
+                                            title: item.title || item.url,
+                                            url: item.url,
+                                            pub_date: convertDate(String(item.pub_date).split(".")[0]),
+                                            snippet: item.snippet || ""
+                                        });
+                                    }
+                                });
+                            }
+                            // Extract products for both Used Search Results and Product Results sections
+                            else if (ref.type === "products" && Array.isArray(ref.products)) {
                                 ref.products.forEach(product => {
-                                    productResults.push({
-                                        title: product.title || 'Unknown Product',
-                                        url: product.url || product.product_lookup_data?.url || '',
-                                        price: product.price || 'Price not available',
-                                        rating: product.rating || 'N/A',
-                                        num_reviews: product.num_reviews || 'N/A',
-                                        merchants: product.merchants || 'See merchants',
-                                        featured_tag: product.featured_tag || '',
-                                    });
+                                    const productId = product.id;
+                                    const productUrl = product.url || product.product_lookup_data?.url || '';
+
+                                    // Add to Product Results section (with separate deduplication)
+                                    if (productId && !productResultsIdsSet.has(productId)) {
+                                        productResultsIdsSet.add(productId);
+                                        productResults.push({
+                                            title: product.title || 'Unknown Product',
+                                            url: productUrl,
+                                            price: product.price || 'Price not available',
+                                            rating: product.rating || 'N/A',
+                                            num_reviews: product.num_reviews || 'N/A',
+                                            merchants: product.merchants || 'See merchants',
+                                            featured_tag: product.featured_tag || '',
+                                        });
+                                    }
+
+                                    // Add to Used Search Results with [Product] prefix (separate deduplication)
+                                    if (productId && !usedProductIdsSet.has(productId)) {
+                                        usedProductIdsSet.add(productId);
+                                        const price = product.price || 'N/A';
+                                        const rating = product.rating || 'N/A';
+                                        const numReviews = product.num_reviews || 'N/A';
+                                        const merchants = product.merchants || 'N/A';
+                                        const snippet = `Price: ${price} | Rating: ${rating}/5 (${numReviews} reviews) | Merchants: ${merchants}`;
+
+                                        resultsUsed.push({
+                                            title: `[Product] ${product.title || 'Unknown Product'}`,
+                                            url: productUrl,
+                                            pub_date: 'Product Result',
+                                            snippet: snippet
+                                        });
+                                    }
                                 });
                             }
                         });
@@ -532,6 +716,9 @@
             // Filter out product results that have a 'featured_tag'
             const filteredProductResults = productResults.filter(p => !p.featured_tag);
             log(`Filtered out ${productResults.length - filteredProductResults.length} product results with tags.`);
+
+            // Sort reasoning data chronologically by timestamp
+            reasoningData.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
             renderResults(contentArea, {
                 queries: Array.from(queries),
